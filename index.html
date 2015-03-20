@@ -1,0 +1,44 @@
+<html>
+<head>
+<title>Webcam Access</title>
+    <script src="js/webcam.js"></script>
+    <script src="js/jsfeat.js"></script>
+</head>
+<body>
+<video autoplay></video>
+<br>
+<form><input type="button" id="capture" value="Smile!" /></form>
+<canvas id="canvas" width="640" height="480"></canvas>
+
+<script language="JavaScript">
+    document.getElementById('capture').onclick = function() {
+        var video = document.
+                querySelector('video');
+        var canvas = document.
+                getElementById('canvas');
+        var ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0);
+
+        var data = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        var image_data = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        var gray_img = new jsfeat.matrix_t(canvas.width, canvas.height, jsfeat.U8_t | jsfeat.C1_t);
+        var code = jsfeat.COLOR_RGBA2GRAY;
+        jsfeat.imgproc.grayscale(image_data.data, canvas.width, canvas.height, gray_img, code);
+        jsfeat.imgproc.gaussian_blur(gray_img, gray_img, kernel_size=7, sigma = 5);
+        var data_u32 = new Uint32Array(image_data.data.buffer);
+
+        var alpha = (0xff << 24);
+        var i = gray_img.cols*gray_img.rows, pix = 0;
+
+        while(--i >= 0) {
+            pix = gray_img.data[i];
+            data_u32[i] = alpha | (pix << 16) | (pix << 8) | pix;
+        }
+
+        ctx.putImageData(image_data, 0, 0);
+    }
+</script>
+</body>
+</html>
