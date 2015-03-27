@@ -3,6 +3,7 @@
 <title>Webcam Access</title>
     <script src="js/webcam.js"></script>
     <script src="js/jsfeat.js"></script>
+    <script src="cascades/frontalface.js"></script>
 </head>
 <body>
 <video autoplay></video>
@@ -17,23 +18,86 @@
         var canvas = document.
                 getElementById('canvas');
         var ctx = canvas.getContext('2d');
-        ctx.drawImage(video, 0, 0);
 
-        var data = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        var options, canvasWidth, canvasHeight;
+        var img_u8, work_canvas, work_ctx, ii_sum, ii_sqsum, ii_tilted, edg, ii_canny;
+        var classifier = jsfeat.haar.frontalface;
 
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        var image_data = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        var gray_img = new jsfeat.matrix_t(canvas.width, canvas.height, jsfeat.U8_t | jsfeat.C1_t);
-        var code = jsfeat.COLOR_RGBA2GRAY;
-        jsfeat.imgproc.grayscale(image_data.data, canvas.width, canvas.height, gray_img, code);
-        jsfeat.imgproc.gaussian_blur(gray_img, gray_img, kernel_size=7, sigma = 5);
+        var max_work_size = 160;
+
+        var demo_opt = function(){
+            this.min_scale = 2;
+            this.scale_factor = 1.15;
+            this.use_canny = true;
+            this.edges_density = 0.13;
+            this.equalize_histogram = true;
+        };
+
+            canvasWidth = canvas.width;
+            canvasHeight = canvas.height;
+
+            ctx.fillStyle = "rgb(0, 255, 0)";
+            ctx.strokeStyle = "rgb(0, 255, 0)";
+
+            var scale = Math.min(max_work_size/canvasWidth, max_work_size/canvasHeight);
+            var w = (canvasWidth*scale) | 0;
+            var h = (canvasHeight*scale) | 0;
+
+            img_u8 = new jsfeat.matrix_t(w, h, jsfeat.U8_t | jsfeat.C1_t);
+            edg = new jsfeat.matrix_t(w, h, jsfeat.U8_t | jsfeat.C1_t);
+            work_canvas = document.createElement('canvas');
+            work_canvas.width = w;
+            work_canvas.height = h;
+            work_ctx = work_canvas.getContext('2d');
+            ii_sum = new Int32Array((w+1)*(h+1));
+            ii_sqsum = new Int32Array((w+1)*(h+1));
+            ii_tilted = new Int32Array((w+1)*(h+1));
+            ii_canny = new Int32Array((w+1)*(h+1));
+
+            options = new demo_opt();
+
+            ctx.drawImage(video, 0, 0);
+
+            var image_data = ctx.getImageData(0, 0, w, h);
+
+            jsfeat.imgproc.grayscale(image_data.data, w, h, img_u8);
+            if (options.equalize_histogram) {
+                jsfeat.imgproc.equalize_histogram(img_u8, img_u8);
+            }
+
+            jsfeat.imgproc.compute_integral_image(img_u8, ii_sum, ii_sqsum, ii_tilted);
+
+            jsfeat.imgproc.canny(img_u8, edg, 10, 50);
+            jsfeat.imgproc.compute_integral_image(edg, ii_canny, null, null);
+
+            jsfeat.haar.edges_density = options.edges_density;
+            var rects = jsfeat.haar.detect_multi_scale(ii_sum, ii_sqsum, ii_tilted, options.use_canny ? ii_canny : null, img_u8.cols, img_u8.rows,
+            classifier, options.scale_factor, options.min_scale);
+
+            rects = jsfeat.haar.group_rectangles(rects, 1);
+
+            draw_faces(ctx, rects, canvasWidth/img_u8.cols, 1);
+
+        function draw_faces(ctx, rects, sc, max) {
+            var on = rects.length;
+            if (on && max ) {
+                jsfeat.math.qsort(rects, 0, on-1, function(a, b) {return (b.confidence< a.confidence);})
+            }
+            var n = max || on;
+            n = Math.min(n, on);
+            var r;
+            for(var i=0 ; i<n ; ++i) {
+                r = rects[i];
+                ctx.strokeRect((r.x*sc)|0, (r.y*sc)|0, (r.width*sc)|0, (r.height*sc)|0);
+                alert('hey');
+            }
+        }
         var data_u32 = new Uint32Array(image_data.data.buffer);
-
         var alpha = (0xff << 24);
-        var i = gray_img.cols*gray_img.rows, pix = 0;
+        var i = img_u8.cols*img_u8.rows, pix = 0;
 
         while(--i >= 0) {
-            pix = gray_img.data[i];
+            pix = img_u8.data[i];
             data_u32[i] = alpha | (pix << 16) | (pix << 8) | pix;
         }
 
