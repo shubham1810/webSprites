@@ -2,8 +2,9 @@
 <head>
 <title>Webcam Access</title>
     <script src="js/webcam.js"></script>
-    <script src="js/jsfeat.js"></script>
-    <script src="cascades/frontalface.js"></script>
+
+    <script src="ccv.js"></script>
+    <script src="face.js"></script>
 </head>
 <body>
 <video autoplay></video>
@@ -12,12 +13,19 @@
 <div id="sketch"><canvas id="canvas" width="640" height="480"></canvas></div>
 
 <script language="JavaScript">
-    document.getElementById('capture').onclick = function() {
+    /*document.getElementById('capture').onclick = function() {
         var video = document.
                 querySelector('video');
         var canvas = document.
                 getElementById('canvas');
         var ctx = canvas.getContext('2d');
+
+
+        ctx.drawImage(video, 0, 0);
+        var data = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        ctx.putImageData(data, 0, 0);
+
 
         var options, canvasWidth, canvasHeight;
         var img_u8, work_canvas, work_ctx, ii_sum, ii_sqsum, ii_tilted, edg, ii_canny;
@@ -45,7 +53,7 @@
 
             img_u8 = new jsfeat.matrix_t(w, h, jsfeat.U8_t | jsfeat.C1_t);
             edg = new jsfeat.matrix_t(w, h, jsfeat.U8_t | jsfeat.C1_t);
-            work_canvas = document.createElement('canvas');
+            work_canvas = canvas;
             work_canvas.width = w;
             work_canvas.height = h;
             work_ctx = work_canvas.getContext('2d');
@@ -76,7 +84,7 @@
 
             rects = jsfeat.haar.group_rectangles(rects, 1);
 
-            draw_faces(ctx, rects, canvasWidth/img_u8.cols, 1);
+            draw_faces(ctx, rects, canvasWidth, 1);
 
         function draw_faces(ctx, rects, sc, max) {
             var on = rects.length;
@@ -101,9 +109,54 @@
             data_u32[i] = alpha | (pix << 16) | (pix << 8) | pix;
         }
 
-        ctx.putImageData(image_data, 0, 0);
-    }
+        ctx.putImageData(img_u8, 0, 0);
+    }*/
 </script>
+
+<script>
+
+    document.getElementById('capture').onclick = function() {
+        var video = document.
+                querySelector('video');
+        var canvas = document.
+                getElementById('canvas');
+        var ctx = canvas.getContext('2d');
+
+        //ctx.clearRect(0, 0, 480, 640);
+
+        ctx.drawImage(video, 0, 0);
+        //ctx.clearRect(0, 0, 640, 480);
+        var data = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        ctx.putImageData(data, 0, 0);
+
+        var comp;
+
+        comp = ccv.detect_objects({ "canvas" : (ccv.pre(canvas)),
+                                   "cascade" : cascade,
+                                   "interval" : 5,
+                                   "min_neighbors" : 1 });
+        //alert(comp.length);
+        for (var i = 0; i < comp.length; i++) {
+            ctx.fillStyle = 'green';
+            console.log("ASD");
+            console.log(comp[i].x);
+            console.log(comp[i].y);
+            console.log(comp[i].width);
+            console.log(comp[i].height);
+            ctx.rect(comp[i].x, comp[i].y, comp[i].width, comp[i].height);
+
+            delete comp[i];
+            //ctx.drawImage(glasses, comp[i].x, comp[i].y,comp[i].width, comp[i].height);
+        }
+
+        ctx.putImageData(data, 0, 0);
+        ctx.stroke();
+        ctx.restore();
+    };
+
+</script>
+
 <script src="js/canvas.js"></script>
 </body>
 </html>
